@@ -1,110 +1,92 @@
-from fastapi import FastAPI, Request , HTTPException , status
+from fastapi import FastAPI, Request , HTTPException , status , Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
-from schemas import PostCreate , PostResponse
+from schemas import PostCreate , PostResponse , UserCreate
+import models
+from database import Base,engine,get_db ,SessionLocal
+from typing import Annotated
+from sqlalchemy.orm import Session
 
+#creates db tables at app startup
+Base.metadata.create_all(bind=engine)
 
 app= FastAPI()
 templates= Jinja2Templates(directory="templates")
 
 app.mount("/static" ,StaticFiles(directory= "static") , name="static")
 
-posts : list[dict] = [
-    
-  {
-    "id": 1,
-    "author": "Aarav Mehta",
-    "title": "The Art of Small Steps",
-    "content": "Progress is rarely loud. It is built quietly through small, consistent efforts that often go unnoticed.",
-    "date_posted": "2026-03-12"
-  },
-  {
-    "id": 2,
-    "author": "Diya Sharma",
-    "title": "When Ideas Collide",
-    "content": "Great innovation often comes from unexpected intersections of different thoughts and perspectives.",
-    "date_posted": "2026-01-28"
-  },
-  {
-    "id": 3,
-    "author": "Rohan Kapoor",
-    "title": "Late Night Thoughts",
-    "content": "There is something about silence at night that makes even the simplest questions feel profound.",
-    "date_posted": "2026-02-10"
-  },
-  {
-    "id": 4,
-    "author": "Ananya Iyer",
-    "title": "Learning to Unlearn",
-    "content": "Sometimes growth is not about adding more, but about letting go of what no longer serves you.",
-    "date_posted": "2026-04-01"
-  },
-  {
-    "id": 5,
-    "author": "Kabir Singh",
-    "title": "Moments That Matter",
-    "content": "In the rush of everyday life, we often miss the quiet moments that truly define our happiness.",
-    "date_posted": "2026-03-25"
-  }
+app.mount("/media" , StaticFiles(directory="media") , name="media")
 
-]
 
 
 #api endpoints
-
 @app.get("/")
 def home():
     return {"message": "home"}
 
-
+#get all posts 
 @app.get("/api/posts" , response_model=list[PostResponse])
-def get_posts(request : Request):
-    return templates.TemplateResponse(request , "home.html" , {"posts":posts, "title": "Home" } )
+def get_posts(request : Request , db:Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return templates.TemplateResponse(request , "home.html", {"posts" : posts , "title": "Home"} )
+
+#create a post
+@app.post("/api/posts")
+def post_create(new_post: PostCreate, db:Session=Depends(get_db)):
+    post_data= models.Post(title= new_post.title , content =new_post.content ,user_id= new_post.user_id)
+    db.add(post_data)
+    db.commit()
+    db.refresh(post_data)
+    return post_data
 
 
-@app.get("/post/{post_id}" , response_model=PostResponse)
-def post_page(request : Request , post_id : int):
-     for post in posts:
-       if post.get("id")==post_id:
-          title= post["title"]
-          return templates.TemplateResponse(request , "post.html" , { "post": post , "title": title } )
-        
-     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND , detail="post not found")  
+#look at a single post on a different page 
+@app.get("/post/{post_id}")
+def get_post(post_id:int , request: Request,db:Session= Depends(get_db)):
+    post = db.query(models.Post).where(models.Post.id==post_id).first()
+    if post:
+      title= post.title[:50]
+      return templates.TemplateResponse(request , "post.html",{"post" :post , "title": title})
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND , detail="post not found")
 
+#create a user
+@app.post("/api/users")
+def create_user(usercreate: UserCreate , db:Session = Depends(get_db)):
+    username = db.query(models.User).where(models.User.username==usercreate.username).first()
+    email = db.query(models.User).where(models.User.email==usercreate.email).first()
 
-@app.post("/api/posts" , response_model=PostCreate , status_code=status.HTTP_201_CREATED)
-def create_post(post:PostCreate):
-     new_id = max(p["id"] for p in posts) + 1 if posts else 1
-     new_post = {
-        "id": new_id,
-        "author": post.author,
-        "title": post.title,
-        "content": post.content,
-        "date_posted": "April 23, 2025",
-     }
-     posts.append(new_post)
-     return new_post
+    if username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST , detail="username already exists")
+    if email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail= "email already registered")
+    user_data= models.User(username=usercreate.username , email= usercreate.email )   
+    db.add(user_data)
+    db.commit()
+    db.refresh(user_data)
+    return user_data
 
+#get user
+@app.get("/api/users/{user_id}")
+def get_user(user_id : int, db:Session= Depends(get_db)):
+    user= db.query(models.User).where(models.User.id==user_id).first()
+    if user:
+        return user
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND , detail = "user not found")
 
-
-
-
-
-
-
-
-
-
+@app.get("/api/users/{user_id}/posts")
+def get_user_posts(user_id: int , db:Session= Depends(get_db)):
+    posts    
 
 
 
 
 
 #exception/error handling
-
 @app.exception_handler(StarletteHTTPException)
 def general_http_exception_handler(request: Request, exception: StarletteHTTPException):
     message = (
@@ -129,7 +111,6 @@ def general_http_exception_handler(request: Request, exception: StarletteHTTPExc
         },
         status_code=exception.status_code,
     )
-
 
 
 ### RequestValidationError Handler
