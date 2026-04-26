@@ -21,7 +21,7 @@ class User(Base):
         default=None,
     )
     
-# establishing user-post : one to many /"A User has many Posts, and those posts are linked back to this user.”
+#establishing user-post : one to many /"A User has many Posts, and those posts are linked back to this user.”
     posts: Mapped[list[Post]] = relationship(back_populates="author")
 
     @property
@@ -29,7 +29,6 @@ class User(Base):
         if self.image_file:
             return f"/media/profile_pics/{self.image_file}"
         return "/static/profile_pics/default.jpeg"
-
 
 
 class Post(Base):
