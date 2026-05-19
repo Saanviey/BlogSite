@@ -12,7 +12,6 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     pass
 
-
 class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
