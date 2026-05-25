@@ -99,6 +99,7 @@ async def get_current_user(
 CurrentUser = Annotated[models.User, Depends(get_current_user)]
 
 
+
 #simpler version
 # verifies access token and returns te user -- use it as a dependency ig?
 # async def get_current_use( token: Annotated[str ,Depends(oauth2_scheme)], db: Annotated[AsyncSession , Depends(get_db)]):
