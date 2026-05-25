@@ -32,3 +32,13 @@ your route now has the current logged in user and does its thing.
 The chain in one line:
 request → route → get_current_user → verify_token → SECRET_KEY → user_id → db → user object → route logic.
 That's the entire thing. Where are you starting? is this how it works
+
+4--
+ Depends(some_function) means "run this function first and give me whatever it returns."
+ex:
+Depends(get_db) — run get_db, give me the session it returns
+Depends(get_current_user) — run get_current_user, give me the user it returns
+
+The variable name on the left is just what you call it inside your route:
+db: Annotated[AsyncSession, Depends(get_db)]  # db = whatever get_db returns
+current_user: Annotated[models.User, Depends(get_current_user)]  # current_user = whatever get_current_user returns

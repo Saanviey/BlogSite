@@ -1,15 +1,10 @@
 #new my shit
-from fastapi import HTTPException , status 
-from fastapi import Depends 
+from fastapi import HTTPException , status ,Depends
 from typing import Annotated
 from database import get_db 
 from sqlalchemy.ext.asyncio import AsyncSession
 import models
 from sqlalchemy import select
-
-
-
-
 from datetime import UTC,datetime,timedelta
 import jwt 
 from fastapi.security import OAuth2PasswordBearer
@@ -68,11 +63,44 @@ def verify_access_token(token: str) -> str | None:
     
 
 
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> models.User:
+    user_id = verify_access_token(token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    result = await db.execute(
+        select(models.User).where(models.User.id == user_id_int),
+    )
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+CurrentUser = Annotated[models.User, Depends(get_current_user)]
 
 
-
-
-# #verifies access token and returns te user
+#simpler version
+# verifies access token and returns te user -- use it as a dependency ig?
 # async def get_current_use( token: Annotated[str ,Depends(oauth2_scheme)], db: Annotated[AsyncSession , Depends(get_db)]):
 #        user_id = verify_access_token(token)
 #        if not user_id:
