@@ -28,6 +28,7 @@ Thumbs.db
 .idea/
 
 notes.txt
+dump.txt
 
 #for testing pagination only 
 populate_db.py
