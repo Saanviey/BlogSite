@@ -5,7 +5,7 @@ db_url = "sqlite+aiosqlite:///./blog.db"
 
 engine= create_async_engine(db_url )
 
-SessionLocal = async_sessionmaker( engine , class_=AsyncSession)
+AsyncSessionLocal= async_sessionmaker( engine , class_=AsyncSession)
 
 
 class Base(DeclarativeBase):
@@ -13,6 +13,6 @@ class Base(DeclarativeBase):
 
 
 async def get_db():
-   async with SessionLocal() as session:
+   async with AsyncSessionLocal() as session:
        yield session
 
