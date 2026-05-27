@@ -64,3 +64,21 @@ class PaginatedPostsResponse(BaseModel):
     has_more: int
 
 
+# Password Reset Schemas
+#initial request hit(user->server)
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(max_length=120)
+
+#after reset hit -> token+ new_pass(user->server)
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+#change pass req(server->user)
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+
+

@@ -10,12 +10,14 @@ import jwt
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 from config import settings
-
+import hashlib 
+import secrets
 
 password_hash = PasswordHash.recommended()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/token")
 
+#pass hash
 def hash_password(password :str)->str:
     hash= password_hash.hash(password)
     return hash
@@ -23,6 +25,13 @@ def hash_password(password :str)->str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
 
+#passwod reset tokens
+def generate_reset_token()->str:
+    return secrets.token_urlsafe(32)
+
+def hash_reset_token(token:str)->str:
+    return hashlib.sha256(token.encode()).hexdigest()
+    
 
 #encode — payload + secret → signed token string.encode — payload + secret → signed token string.
 #decode — signed token string + secret → payload dict (or error if tampered/expired).
@@ -98,24 +107,5 @@ async def get_current_user(
 
 CurrentUser = Annotated[models.User, Depends(get_current_user)]
 
-
-
-#simpler version
-# verifies access token and returns te user -- use it as a dependency ig?
-# async def get_current_use( token: Annotated[str ,Depends(oauth2_scheme)], db: Annotated[AsyncSession , Depends(get_db)]):
-#        user_id = verify_access_token(token)
-#        if not user_id:
-#             raise HTTPException(status_code= status.HTTP_401_UNAUTHORIZED , detail= " you are not authourised" ,  
-#                                 headers={"WWW-Authenticate": "Bearer"})
-#        else:
-#             result = await db.execute(select(models.User).where(models.User.id == user_id))
-#             user = result.scalars().first()
-#             if not user:
-#                 raise HTTPException(
-#                 status_code=status.HTTP_401_UNAUTHORIZED,
-#                 detail="Not authorized",
-#                 headers={"WWW-Authenticate": "Bearer"}
-#              )
-#             return user
-           
+        
 

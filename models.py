@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from database import Base
 
 #did not understand a lot of it lowkey 
@@ -23,7 +22,13 @@ class User(Base):
     )
     
 #establishing user-post : one to many /"A User has many Posts, and those posts are linked back to this user.”
-    posts: Mapped[list[Post]] = relationship(back_populates="author")
+    posts: Mapped[list[Post]] = relationship(back_populates="author",
+                                             cascade="all, delete-orphan",)
+    reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
 
     @property
     def image_path(self) -> str:
@@ -49,4 +54,24 @@ class Post(Base):
     )
     #joining back the many to one post-user
     author: Mapped[User] = relationship(back_populates="posts")
+
+
+
+## PasswordResetToken model
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
+
+    user: Mapped[User] = relationship(back_populates="reset_tokens")
 
