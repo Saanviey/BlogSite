@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import  DeclarativeBase
+from config import settings
 
-db_url = "sqlite+aiosqlite:///./blog.db"
 
-engine= create_async_engine(db_url )
+engine= create_async_engine( settings.database_url)
 
 AsyncSessionLocal= async_sessionmaker( engine , class_=AsyncSession)
 

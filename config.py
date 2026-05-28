@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     
     frontend_url: str = "http://localhost:8000"
 
+    database_url:str
+
 
 settings = Settings()
 
