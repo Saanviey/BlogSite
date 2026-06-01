@@ -29,6 +29,34 @@
             </div>
         </div>
     </article>
+
+    <!-- ─── Comments Section ───────────────────────────────────────────── -->
+    <section class="content-section py-3 px-4 mb-4" id="commentsSection">
+
+        <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+            <h5 class="mb-0">Comments (<span id="commentCount">0</span>)</h5>
+        </div>
+
+        <!-- Live comment list -->
+        <div id="commentList"></div>
+
+        <!-- Submit form — shown only when logged in -->
+        <div id="commentFormWrapper" class="d-none mt-3 border-top pt-3">
+            <form id="commentForm">
+                <div class="mb-2">
+                    <textarea class="form-control"
+                              id="commentContent"
+                              name="content"
+                              rows="3"
+                              placeholder="Write a comment…"
+                              required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Post Comment</button>
+            </form>
+        </div>
+
+    </section>
+
     <!-- Edit Post Modal -->
     <div class="modal fade"
          id="editModal"
@@ -75,6 +103,7 @@
             </div>
         </div>
     </div>
+
     <!-- Delete Confirmation Modal -->
     <div class="modal fade"
          id="deleteModal"
@@ -102,113 +131,267 @@
             </div>
         </div>
     </div>
-    
 {% endblock content %}
+
 {% block scripts %}
-    <script type="module">
-    import { getCurrentUser, getToken } from '/static/js/auth.js';
-    import { getErrorMessage, showModal, hideModal } from '/static/js/utils.js';
+<script type="module">
+import { getCurrentUser, getToken } from '/static/js/auth.js';
+import { getErrorMessage, showModal, hideModal } from '/static/js/utils.js';
 
-    const postId = {{ post.id }};
-    const postUserId = {{ post.user_id }};
+const postId     = {{ post.id }};
+const postUserId = {{ post.user_id }};
 
-    // Show edit/delete buttons only if current user owns this post
-    async function checkOwnership() {
-        const user = await getCurrentUser();
-        if (user && user.id === postUserId) {
-            document.getElementById('postActions').classList.remove('d-none');
-        }
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric',
+    });
+}
+
+/**
+ * Build a comment DOM node.
+ * Pass ownerId so the delete button is shown only to the comment author.
+ */
+function buildCommentEl(comment, currentUserId) {
+    const el = document.createElement('div');
+    el.className = 'comment-item d-flex gap-3 mb-3 pb-3 border-bottom';
+    el.dataset.commentId = comment.id;
+
+    const isOwner = currentUserId && currentUserId === comment.author.id;
+    el.innerHTML = `
+        <img src="${comment.author.image_path}"
+             alt="${comment.author.username}"
+             width="40" height="40"
+             class="rounded-circle flex-shrink-0"
+             loading="lazy">
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <strong class="small">${comment.author.username}</strong>
+                <small class="text-body-secondary">${formatDate(comment.date_posted)}</small>
+                ${isOwner ? `
+                <button class="btn btn-link btn-sm text-danger p-0 ms-auto delete-comment-btn"
+                        data-comment-id="${comment.id}">Delete</button>` : ''}
+            </div>
+            <p class="mb-0 small">${comment.content}</p>
+        </div>`;
+    return el;
+}
+
+function getCount() {
+    return document.querySelectorAll('.comment-item').length;
+}
+
+function updateCount() {
+    document.getElementById('commentCount').textContent = getCount();
+}
+
+// ── Initial load (REST) ───────────────────────────────────────────────────
+
+let currentUser = null;
+
+async function init() {
+    currentUser = await getCurrentUser();
+
+    if (currentUser) {
+        document.getElementById('commentFormWrapper').classList.remove('d-none');
     }
 
-    // Edit Post Form Handler
-    const editForm = document.getElementById('editPostForm');
-    editForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
+    // Check post ownership for edit/delete post buttons
+    if (currentUser && currentUser.id === postUserId) {
+        document.getElementById('postActions').classList.remove('d-none');
+    }
 
-        const token = getToken();
-        if (!token) { window.location.href = '/login'; return; }
+    // Fetch existing comments via REST
+    const res = await fetch(`/api/posts/${postId}/comments`);
+    if (res.ok) {
+        const comments = await res.json();
+        const list = document.getElementById('commentList');
+        comments.forEach(c => list.appendChild(buildCommentEl(c, currentUser?.id)));
+        updateCount();
+    }
 
-        const formData = new FormData(editForm);
-        const postData = Object.fromEntries(formData.entries());
-        delete postData.post_id;
+    // Open WebSocket after initial render
+    connectWS();
+}
 
-        try {
-            const response = await fetch(`/api/posts/${postId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify(postData),
-            });
+// ── WebSocket (live updates) ──────────────────────────────────────────────
 
-            if (response.status === 401) { window.location.href = '/login'; return; }
-            if (response.status === 403) {
-                document.getElementById('errorMessage').textContent =
-                    'You are not authorized to edit this post.';
-                hideModal('editModal');
-                showModal('errorModal');
-                return;
+function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws/posts/${postId}/comments`);
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.event === 'comment_added') {
+            const list = document.getElementById('commentList');
+            // Avoid duplicates if this tab submitted the comment
+            if (!document.querySelector(`[data-comment-id="${data.comment.id}"]`)) {
+                list.appendChild(buildCommentEl(data.comment, currentUser?.id));
+                updateCount();
             }
-
-            if (response.ok) {
-                document.getElementById('successMessage').textContent =
-                    'Post updated successfully!';
-                hideModal('editModal');
-                showModal('successModal');
-
-                document.getElementById('successModal').addEventListener('hidden.bs.modal', () => {
-                    window.location.reload();
-                }, { once: true });
-            } else {
-                const error = await response.json();
-                document.getElementById('errorMessage').textContent = getErrorMessage(error);
-                hideModal('editModal');
-                showModal('errorModal');
-            }
-        } catch (error) {
-            document.getElementById('errorMessage').textContent =
-                'Network error. Please check your connection and try again.';
-            showModal('errorModal');
         }
+
+        if (data.event === 'comment_deleted') {
+            const el = document.querySelector(`[data-comment-id="${data.comment_id}"]`);
+            if (el) { el.remove(); updateCount(); }
+        }
+    };
+
+    ws.onclose = () => {
+        // Reconnect after 3 s if the connection drops
+        setTimeout(connectWS, 3000);
+    };
+}
+
+// ── Submit comment ────────────────────────────────────────────────────────
+
+document.getElementById('commentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+
+    const content = document.getElementById('commentContent').value.trim();
+    if (!content) return;
+
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content }),
     });
 
-    // Delete Post Handler
-    const deleteButton = document.getElementById('confirmDelete');
-    deleteButton.addEventListener('click', async () => {
-        const token = getToken();
-        if (!token) { window.location.href = '/login'; return; }
+    if (res.status === 401) { window.location.href = '/login'; return; }
 
-        try {
-            const response = await fetch(`/api/posts/${postId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-
-            if (response.status === 401) { window.location.href = '/login'; return; }
-            if (response.status === 403) {
-                document.getElementById('errorMessage').textContent =
-                    'You are not authorized to delete this post.';
-                hideModal('deleteModal');
-                showModal('errorModal');
-                return;
-            }
-
-            if (response.status === 204) {
-                window.location.href = '/';
-            } else {
-                const error = await response.json();
-                document.getElementById('errorMessage').textContent = getErrorMessage(error);
-                hideModal('deleteModal');
-                showModal('errorModal');
-            }
-        } catch (error) {
-            document.getElementById('errorMessage').textContent =
-                'Network error. Please check your connection and try again.';
-            showModal('errorModal');
+    if (res.ok) {
+        document.getElementById('commentContent').value = '';
+        // The broadcast from the backend will add it to the list for all viewers;
+        // we optimistically add it locally so this tab doesn't wait.
+        const comment = await res.json();
+        const list = document.getElementById('commentList');
+        if (!document.querySelector(`[data-comment-id="${comment.id}"]`)) {
+            list.appendChild(buildCommentEl(comment, currentUser?.id));
+            updateCount();
         }
+    } else {
+        const error = await res.json();
+        document.getElementById('errorMessage').textContent = getErrorMessage(error);
+        showModal('errorModal');
+    }
+});
+
+// ── Delete comment (event delegation) ────────────────────────────────────
+
+document.getElementById('commentList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.delete-comment-btn');
+    if (!btn) return;
+
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+
+    const commentId = btn.dataset.commentId;
+    const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
     });
 
-    checkOwnership();
-    </script>
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (res.status === 204) {
+        // Broadcast will handle removal for all viewers;
+        // remove locally for this tab immediately.
+        const el = document.querySelector(`[data-comment-id="${commentId}"]`);
+        if (el) { el.remove(); updateCount(); }
+    } else {
+        const error = await res.json();
+        document.getElementById('errorMessage').textContent = getErrorMessage(error);
+        showModal('errorModal');
+    }
+});
+
+// ── Post edit / delete (unchanged from original) ─────────────────────────
+
+const editForm = document.getElementById('editPostForm');
+editForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+
+    const formData = new FormData(editForm);
+    const postData = Object.fromEntries(formData.entries());
+    delete postData.post_id;
+
+    try {
+        const response = await fetch(`/api/posts/${postId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(postData),
+        });
+
+        if (response.status === 401) { window.location.href = '/login'; return; }
+        if (response.status === 403) {
+            document.getElementById('errorMessage').textContent = 'You are not authorized to edit this post.';
+            hideModal('editModal');
+            showModal('errorModal');
+            return;
+        }
+        if (response.ok) {
+            document.getElementById('successMessage').textContent = 'Post updated successfully!';
+            hideModal('editModal');
+            showModal('successModal');
+            document.getElementById('successModal').addEventListener('hidden.bs.modal', () => {
+                window.location.reload();
+            }, { once: true });
+        } else {
+            const error = await response.json();
+            document.getElementById('errorMessage').textContent = getErrorMessage(error);
+            hideModal('editModal');
+            showModal('errorModal');
+        }
+    } catch {
+        document.getElementById('errorMessage').textContent = 'Network error. Please check your connection and try again.';
+        showModal('errorModal');
+    }
+});
+
+
+document.getElementById('confirmDelete').addEventListener('click', async () => {
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+
+    try {
+        const response = await fetch(`/api/posts/${postId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (response.status === 401) { window.location.href = '/login'; return; }
+        if (response.status === 403) {
+            document.getElementById('errorMessage').textContent = 'You are not authorized to delete this post.';
+            hideModal('deleteModal');
+            showModal('errorModal');
+            return;
+        }
+        if (response.status === 204) {
+            window.location.href = '/';
+        } else {
+            const error = await response.json();
+            document.getElementById('errorMessage').textContent = getErrorMessage(error);
+            hideModal('deleteModal');
+            showModal('errorModal');
+        }
+    } catch {
+        document.getElementById('errorMessage').textContent = 'Network error. Please check your connection and try again.';
+        showModal('errorModal');
+    }
+});
+
+init();
+</script>
 {% endblock scripts %}

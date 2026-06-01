@@ -41,6 +41,7 @@ class PostResponse(PostBase):
     user_id: int
     date_posted: datetime
     author: UserPublic
+    liked :bool
 
 
 class UserUpdate(BaseModel):
@@ -80,5 +81,22 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8)
 
 
+#comments schemas
+class CommentCreate(BaseModel):
+    content: str = Field(min_length=1)
+
+class CommentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    content: str
+    date_posted: datetime
+    user_id: int
+    post_id: int
+    author: UserPublic
 
 
+#likes
+class LikeResponse(BaseModel):
+    liked: bool  # True if just liked, False if unliked
+    likes: int   # updated count

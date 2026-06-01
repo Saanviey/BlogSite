@@ -15,8 +15,11 @@ from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import models
 from database import engine, get_db
-from routers import posts, users
+from routers import posts, users, comments, likes
 from config import settings
+from fastapi import WebSocket, WebSocketDisconnect
+from websocket_manager import manager
+
 
 
 @asynccontextmanager
@@ -36,6 +39,8 @@ templates = Jinja2Templates(directory="templates")
 
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
+app.include_router(comments.router, prefix="/api/posts", tags=["comments"])
+app.include_router(likes.router, prefix="/api", tags=["likes"])
 
 
 @app.get("/", include_in_schema=False, name="home")
@@ -225,3 +230,22 @@ async def validation_exception_handler(
         },
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
     )
+
+
+##re stuff 
+@app.websocket("/ws/posts/{post_id}/comments")
+async def comments_ws(websocket: WebSocket, post_id: int):
+    """
+    Clients connect here to receive live comment events for a given post.
+    The endpoint itself never receives messages from the client — it only
+    pushes broadcasts that originate from REST mutations.
+    """
+    await manager.connect(post_id, websocket)
+    try:
+        while True:
+            # Keep the connection alive; we don't process client messages.
+            # recv() will raise WebSocketDisconnect when the client leaves.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(post_id, websocket)
+ 
