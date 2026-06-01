@@ -35,3 +35,4 @@ populate_db.py
 populate_images/
 
 check_s3.py
+templates/post_old.html
