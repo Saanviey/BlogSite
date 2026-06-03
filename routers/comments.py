@@ -7,7 +7,7 @@ import models
 from database import get_db
 from schemas import CommentCreate, CommentResponse
 from auth import CurrentUser
-from websocket_manager import manager
+from websocket_manager import manager , notification_manager
 
 #comments router lesgo 
 #stacked on top of posts-routers 
@@ -39,7 +39,8 @@ async def create_comment(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    post = await db.get(models.Post, post_id)
+    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+    post = result.scalars().first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
  
@@ -48,6 +49,8 @@ async def create_comment(
         user_id=current_user.id,
         post_id=post_id,
     )
+    post_user_id = post.user_id      # save before commit
+    post_title = post.title          # save before commit
     db.add(new_comment)
     await db.commit()
     await db.refresh(new_comment, attribute_names=["author"])
@@ -71,6 +74,14 @@ async def create_comment(
             },
         },
     )
+    # notify post author if they're not the commenter
+    if post_user_id != current_user.id:
+        await notification_manager.send_to_user(post_user_id, {
+            "type": "notification",
+            "message": f"{current_user.username} commented on your post",
+            "post_id": post_user_id,
+            "post_title": post_title,
+        })
  
     return new_comment
  

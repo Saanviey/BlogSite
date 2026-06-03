@@ -21,6 +21,12 @@
                                href="{{ url_for('post_page', post_id=post.id) }}">{{ post.title }}</a>
                         </h2>
                         <p class="article-content">{{ post.content }}</p>
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <button class="btn btn-link p-0 like-btn" data-post-id="{{ post.id }}" data-liked="false">
+                                <span class="like-heart">🤍</span>
+                            </button>
+                            <small class="like-count text-body-secondary">{{ post.likes }}</small>
+                        </div>
                     </div>
                 </div>
             </article>
@@ -35,17 +41,16 @@
 {% block scripts %}
     <script type="module">
   import { escapeHtml, formatDate } from '/static/js/utils.js';
+  import { getCurrentUser, getToken } from '/static/js/auth.js';
 
-  // Pagination state - initialized from server-rendered values
-
-  let currentOffset = {{ limit }};  // Start after server-rendered posts
+  let currentOffset = {{ limit }};
   const limit = {{ limit }};
   let hasMore = {{ 'true' if has_more else 'false' }};
+  let currentUser = null;
 
   const postsContainer = document.getElementById('postsContainer');
   const loadMoreBtn = document.getElementById('loadMoreBtn');
 
-  // Create HTML for a single post (matching server-rendered structure)
   function createPostHTML(post) {
     return `
       <article class="content-section py-3 px-4 mb-4">
@@ -60,50 +65,74 @@
               <a class="article-title" href="/posts/${post.id}">${escapeHtml(post.title)}</a>
             </h2>
             <p class="article-content">${escapeHtml(post.content)}</p>
+            <div class="d-flex align-items-center gap-2 mt-2">
+              <button class="btn btn-link p-0 like-btn" data-post-id="${post.id}" data-liked="false">
+                <span class="like-heart">🤍</span>
+              </button>
+              <small class="like-count text-body-secondary">${post.likes}</small>
+            </div>
           </div>
         </div>
       </article>
     `;
   }
 
-  // Load more posts from the API
+  async function initLikes() {
+    if (!currentUser) return;
+    const token = getToken();
+    document.querySelectorAll('.like-btn').forEach(async (btn) => {
+      const postId = btn.dataset.postId;
+      const res = await fetch(`/api/posts/${postId}/like/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const { liked } = await res.json();
+        btn.dataset.liked = liked;
+        btn.querySelector('.like-heart').textContent = liked ? '❤️' : '🤍';
+      }
+    });
+  }
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.like-btn');
+    if (!btn) return;
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+    const postId = btn.dataset.postId;
+    const res = await fetch(`/api/posts/${postId}/like`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const { liked, likes } = await res.json();
+      btn.dataset.liked = liked;
+      btn.querySelector('.like-heart').textContent = liked ? '❤️' : '🤍';
+      btn.closest('article').querySelector('.like-count').textContent = likes;
+    }
+  });
+
   async function loadMorePosts() {
-    // Disable button and show loading state
     loadMoreBtn.disabled = true;
     loadMoreBtn.textContent = 'Loading...';
-
     let errorOccurred = false;
-
     try {
       const response = await fetch(`/api/posts?skip=${currentOffset}&limit=${limit}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch posts');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch posts');
       const data = await response.json();
-
-      // Append new posts to the container
       for (const post of data.posts) {
         postsContainer.insertAdjacentHTML('beforeend', createPostHTML(post));
       }
-
-      // Update pagination state
       currentOffset += data.posts.length;
       hasMore = data.has_more;
-
-      // Hide button if no more posts
-      if (!hasMore) {
-        loadMoreBtn.classList.add('d-none');
-      }
+      if (!hasMore) loadMoreBtn.classList.add('d-none');
+      // check like status for newly loaded posts
+      await initLikes();
     } catch (error) {
       errorOccurred = true;
       console.error('Error loading posts:', error);
-      // Show error message and keep button enabled for retry
       loadMoreBtn.textContent = 'Error - Click to Retry';
       loadMoreBtn.disabled = false;
     } finally {
-      // Re-enable button and reset text only if no error occurred
       if (!errorOccurred && hasMore) {
         loadMoreBtn.disabled = false;
         loadMoreBtn.textContent = 'Load More Posts';
@@ -111,9 +140,12 @@
     }
   }
 
-  // Add click handler if button exists
   if (loadMoreBtn) {
     loadMoreBtn.addEventListener('click', loadMorePosts);
   }
+
+  // init
+  currentUser = await getCurrentUser();
+  await initLikes();
     </script>
 {% endblock scripts %}

@@ -18,9 +18,8 @@ from database import engine, get_db
 from routers import posts, users, comments, likes
 from config import settings
 from fastapi import WebSocket, WebSocketDisconnect
-from websocket_manager import manager
-
-
+from websocket_manager import manager ,notification_manager
+from auth import verify_access_token
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -232,7 +231,7 @@ async def validation_exception_handler(
     )
 
 
-##re stuff 
+##broadcast 
 @app.websocket("/ws/posts/{post_id}/comments")
 async def comments_ws(websocket: WebSocket, post_id: int):
     """
@@ -249,3 +248,23 @@ async def comments_ws(websocket: WebSocket, post_id: int):
     except WebSocketDisconnect:
         manager.disconnect(post_id, websocket)
  
+ 
+#for notif system -unicast 
+@app.websocket("/ws/notifications")
+async def notifications_ws(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    user_id = verify_access_token(token)
+    if not user_id:
+        await websocket.close(code=1008)
+        return
+
+    await notification_manager.connect(int(user_id), websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        notification_manager.disconnect(int(user_id), websocket)

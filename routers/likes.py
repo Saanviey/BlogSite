@@ -44,3 +44,19 @@ async def toggle_post_like(
 
     return LikeResponse(liked=liked, likes=post.likes)
 
+
+# like button logic (to know exactly when a user has liked or not)
+@router.get("/posts/{post_id}/like/status")
+async def get_like_status(
+    post_id: int,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(models.PostLike).where(
+            models.PostLike.user_id == current_user.id,
+            models.PostLike.post_id == post_id,
+        )
+    )
+    liked = result.scalars().first() is not None
+    return {"liked": liked}

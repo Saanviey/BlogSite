@@ -25,6 +25,7 @@ def hash_password(password :str)->str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
 
+
 #passwod reset tokens
 def generate_reset_token()->str:
     return secrets.token_urlsafe(32)
@@ -35,7 +36,6 @@ def hash_reset_token(token:str)->str:
 
 #encode — payload + secret → signed token string.encode — payload + secret → signed token string.
 #decode — signed token string + secret → payload dict (or error if tampered/expired).
-
 # build payload, add expiry, sign with secret key.
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token."""

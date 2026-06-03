@@ -16,6 +16,12 @@
                 </div>
                 <h2 class="article-title">{{ post.title }}</h2>
                 <p class="article-content">{{ post.content }}</p>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <button class="btn btn-link p-0 like-btn" data-post-id="{{ post.id }}" data-liked="false">
+                        <span class="like-heart">🤍</span>
+                    </button>
+                    <small class="like-count text-body-secondary">{{ post.likes }}</small>
+                </div>
                 <div id="postActions" class="post-actions mt-3 pt-3 border-top d-none">
                     <button type="button"
                             class="btn btn-outline-secondary me-1"
@@ -37,10 +43,8 @@
             <h5 class="mb-0">Comments (<span id="commentCount">0</span>)</h5>
         </div>
 
-        <!-- Live comment list -->
         <div id="commentList"></div>
 
-        <!-- Submit form — shown only when logged in -->
         <div id="commentFormWrapper" class="d-none mt-3 border-top pt-3">
             <form id="commentForm">
                 <div class="mb-2">
@@ -58,45 +62,27 @@
     </section>
 
     <!-- Edit Post Modal -->
-    <div class="modal fade"
-         id="editModal"
-         tabindex="-1"
-         aria-labelledby="editModalLabel"
-         aria-hidden="true">
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editModalLabel">Edit Post</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="editPostForm">
                     <div class="modal-body">
                         <input type="hidden" name="post_id" value="{{ post.id }}">
                         <div class="mb-3">
                             <label for="editTitle" class="form-label">Title</label>
-                            <input type="text"
-                                   class="form-control"
-                                   id="editTitle"
-                                   name="title"
-                                   value="{{ post.title }}"
-                                   required>
+                            <input type="text" class="form-control" id="editTitle" name="title" value="{{ post.title }}" required>
                         </div>
                         <div class="mb-3">
                             <label for="editContent" class="form-label">Content</label>
-                            <textarea class="form-control"
-                                      id="editContent"
-                                      name="content"
-                                      rows="5"
-                                      required>{{ post.content }}</textarea>
+                            <textarea class="form-control" id="editContent" name="content" rows="5" required>{{ post.content }}</textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button"
-                                class="btn btn-outline-secondary"
-                                data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
@@ -105,27 +91,18 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div class="modal fade"
-         id="deleteModal"
-         tabindex="-1"
-         aria-labelledby="deleteModalLabel"
-         aria-hidden="true">
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="deleteModalLabel">Delete Post?</h5>
-                    <button type="button"
-                            class="btn-close btn-close-white"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p class="fs-5">Are you sure you want to delete this post? This action cannot be undone.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
                 </div>
             </div>
@@ -141,68 +118,73 @@ import { getErrorMessage, showModal, hideModal } from '/static/js/utils.js';
 const postId     = {{ post.id }};
 const postUserId = {{ post.user_id }};
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
 function formatDate(iso) {
     return new Date(iso).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric',
     });
 }
 
-/**
- * Build a comment DOM node.
- * Pass ownerId so the delete button is shown only to the comment author.
- */
 function buildCommentEl(comment, currentUserId) {
     const el = document.createElement('div');
     el.className = 'comment-item d-flex gap-3 mb-3 pb-3 border-bottom';
     el.dataset.commentId = comment.id;
-
     const isOwner = currentUserId && currentUserId === comment.author.id;
     el.innerHTML = `
-        <img src="${comment.author.image_path}"
-             alt="${comment.author.username}"
-             width="40" height="40"
-             class="rounded-circle flex-shrink-0"
-             loading="lazy">
+        <img src="${comment.author.image_path}" alt="${comment.author.username}" width="40" height="40" class="rounded-circle flex-shrink-0" loading="lazy">
         <div class="flex-grow-1">
             <div class="d-flex align-items-center gap-2 mb-1">
                 <strong class="small">${comment.author.username}</strong>
                 <small class="text-body-secondary">${formatDate(comment.date_posted)}</small>
-                ${isOwner ? `
-                <button class="btn btn-link btn-sm text-danger p-0 ms-auto delete-comment-btn"
-                        data-comment-id="${comment.id}">Delete</button>` : ''}
+                ${isOwner ? `<button class="btn btn-link btn-sm text-danger p-0 ms-auto delete-comment-btn" data-comment-id="${comment.id}">Delete</button>` : ''}
             </div>
             <p class="mb-0 small">${comment.content}</p>
         </div>`;
     return el;
 }
 
-function getCount() {
-    return document.querySelectorAll('.comment-item').length;
-}
-
 function updateCount() {
-    document.getElementById('commentCount').textContent = getCount();
+    document.getElementById('commentCount').textContent = document.querySelectorAll('.comment-item').length;
 }
-
-// ── Initial load (REST) ───────────────────────────────────────────────────
 
 let currentUser = null;
+
+async function initLikes() {
+    if (!currentUser) return;
+    const token = getToken();
+    const btn = document.querySelector('.like-btn');
+    const res = await fetch(`/api/posts/${postId}/like/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+        const { liked } = await res.json();
+        btn.dataset.liked = liked;
+        btn.querySelector('.like-heart').textContent = liked ? '❤️' : '🤍';
+    }
+}
+
+document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.like-btn');
+    if (!btn) return;
+    const token = getToken();
+    if (!token) { window.location.href = '/login'; return; }
+    const res = await fetch(`/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+        const { liked, likes } = await res.json();
+        btn.dataset.liked = liked;
+        btn.querySelector('.like-heart').textContent = liked ? '❤️' : '🤍';
+        document.querySelector('.like-count').textContent = likes;
+    }
+});
 
 async function init() {
     currentUser = await getCurrentUser();
 
-    if (currentUser) {
-        document.getElementById('commentFormWrapper').classList.remove('d-none');
-    }
+    if (currentUser) document.getElementById('commentFormWrapper').classList.remove('d-none');
+    if (currentUser && currentUser.id === postUserId) document.getElementById('postActions').classList.remove('d-none');
 
-    // Check post ownership for edit/delete post buttons
-    if (currentUser && currentUser.id === postUserId) {
-        document.getElementById('postActions').classList.remove('d-none');
-    }
-
-    // Fetch existing comments via REST
     const res = await fetch(`/api/posts/${postId}/comments`);
     if (res.ok) {
         const comments = await res.json();
@@ -211,66 +193,44 @@ async function init() {
         updateCount();
     }
 
-    // Open WebSocket after initial render
+    await initLikes();
     connectWS();
 }
-
-// ── WebSocket (live updates) ──────────────────────────────────────────────
 
 function connectWS() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws/posts/${postId}/comments`);
-
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-
         if (data.event === 'comment_added') {
             const list = document.getElementById('commentList');
-            // Avoid duplicates if this tab submitted the comment
             if (!document.querySelector(`[data-comment-id="${data.comment.id}"]`)) {
                 list.appendChild(buildCommentEl(data.comment, currentUser?.id));
                 updateCount();
             }
         }
-
         if (data.event === 'comment_deleted') {
             const el = document.querySelector(`[data-comment-id="${data.comment_id}"]`);
             if (el) { el.remove(); updateCount(); }
         }
     };
-
-    ws.onclose = () => {
-        // Reconnect after 3 s if the connection drops
-        setTimeout(connectWS, 3000);
-    };
+    ws.onclose = () => setTimeout(connectWS, 3000);
 }
-
-// ── Submit comment ────────────────────────────────────────────────────────
 
 document.getElementById('commentForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const token = getToken();
     if (!token) { window.location.href = '/login'; return; }
-
     const content = document.getElementById('commentContent').value.trim();
     if (!content) return;
-
     const res = await fetch(`/api/posts/${postId}/comments`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ content }),
     });
-
     if (res.status === 401) { window.location.href = '/login'; return; }
-
     if (res.ok) {
         document.getElementById('commentContent').value = '';
-        // The broadcast from the backend will add it to the list for all viewers;
-        // we optimistically add it locally so this tab doesn't wait.
         const comment = await res.json();
         const list = document.getElementById('commentList');
         if (!document.querySelector(`[data-comment-id="${comment.id}"]`)) {
@@ -284,25 +244,18 @@ document.getElementById('commentForm').addEventListener('submit', async (e) => {
     }
 });
 
-// ── Delete comment (event delegation) ────────────────────────────────────
-
 document.getElementById('commentList').addEventListener('click', async (e) => {
     const btn = e.target.closest('.delete-comment-btn');
     if (!btn) return;
-
     const token = getToken();
     if (!token) { window.location.href = '/login'; return; }
-
     const commentId = btn.dataset.commentId;
     const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
     });
-
     if (res.status === 401) { window.location.href = '/login'; return; }
     if (res.status === 204) {
-        // Broadcast will handle removal for all viewers;
-        // remove locally for this tab immediately.
         const el = document.querySelector(`[data-comment-id="${commentId}"]`);
         if (el) { el.remove(); updateCount(); }
     } else {
@@ -312,47 +265,35 @@ document.getElementById('commentList').addEventListener('click', async (e) => {
     }
 });
 
-// ── Post edit / delete (unchanged from original) ─────────────────────────
-
 const editForm = document.getElementById('editPostForm');
 editForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const token = getToken();
     if (!token) { window.location.href = '/login'; return; }
-
     const formData = new FormData(editForm);
     const postData = Object.fromEntries(formData.entries());
     delete postData.post_id;
-
     try {
         const response = await fetch(`/api/posts/${postId}`, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(postData),
         });
-
         if (response.status === 401) { window.location.href = '/login'; return; }
         if (response.status === 403) {
             document.getElementById('errorMessage').textContent = 'You are not authorized to edit this post.';
-            hideModal('editModal');
-            showModal('errorModal');
-            return;
+            hideModal('editModal'); showModal('errorModal'); return;
         }
         if (response.ok) {
             document.getElementById('successMessage').textContent = 'Post updated successfully!';
-            hideModal('editModal');
-            showModal('successModal');
+            hideModal('editModal'); showModal('successModal');
             document.getElementById('successModal').addEventListener('hidden.bs.modal', () => {
                 window.location.reload();
             }, { once: true });
         } else {
             const error = await response.json();
             document.getElementById('errorMessage').textContent = getErrorMessage(error);
-            hideModal('editModal');
-            showModal('errorModal');
+            hideModal('editModal'); showModal('errorModal');
         }
     } catch {
         document.getElementById('errorMessage').textContent = 'Network error. Please check your connection and try again.';
@@ -360,31 +301,25 @@ editForm.addEventListener('submit', async (event) => {
     }
 });
 
-
 document.getElementById('confirmDelete').addEventListener('click', async () => {
     const token = getToken();
     if (!token) { window.location.href = '/login'; return; }
-
     try {
         const response = await fetch(`/api/posts/${postId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` },
         });
-
         if (response.status === 401) { window.location.href = '/login'; return; }
         if (response.status === 403) {
             document.getElementById('errorMessage').textContent = 'You are not authorized to delete this post.';
-            hideModal('deleteModal');
-            showModal('errorModal');
-            return;
+            hideModal('deleteModal'); showModal('errorModal'); return;
         }
         if (response.status === 204) {
             window.location.href = '/';
         } else {
             const error = await response.json();
             document.getElementById('errorMessage').textContent = getErrorMessage(error);
-            hideModal('deleteModal');
-            showModal('errorModal');
+            hideModal('deleteModal'); showModal('errorModal');
         }
     } catch {
         document.getElementById('errorMessage').textContent = 'Network error. Please check your connection and try again.';

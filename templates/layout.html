@@ -102,6 +102,14 @@
                                 <a class="btn btn-light mb-2 mb-md-0 me-md-3"
                                    href="{{ url_for('account_page') }}"
                                    id="accountBtn">Account</a>
+                                   <div class="position-relative me-md-2">
+             <button class="btn btn-outline-light" id="notifBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+               notifications <span id="notifBadge" class="badge bg-danger d-none">0</span>
+             </button>
+          <ul class="dropdown-menu dropdown-menu-end" id="notifDropdown" style="min-width: 300px; max-height: 400px; overflow-y: auto;">
+          <li class="px-3 py-2 text-body-secondary" id="notifEmpty">No new notifications</li>
+         </ul>
+         </div>
                             </div>
                             <!-- Shown when logged out -->
                             <div id="loggedOutNav">
@@ -302,6 +310,50 @@
 
             updateAuthUI();
         </script>
+
+        <!--notif badge counter and redirect management -->
+       <script type="module">
+    import { getToken } from '/static/js/auth.js';
+    import { getCurrentUser } from '/static/js/auth.js';
+
+    async function initNotifications() {
+        const token = getToken();
+        if (!token) return;
+
+        const user = await getCurrentUser();
+        if (!user) return;
+
+        const ws = new WebSocket(`ws://localhost:8000/ws/notifications?token=${token}`);
+        let count = 0;
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type !== 'notification') return;
+
+            count++;
+            const badge = document.getElementById('notifBadge');
+            badge.textContent = count;
+            badge.classList.remove('d-none');
+
+            const empty = document.getElementById('notifEmpty');
+            empty.classList.add('d-none');
+
+            const item = document.createElement('li');
+            item.innerHTML = `<a class="dropdown-item" href="/posts/${data.post_id}">${data.message}</a>`;
+            document.getElementById('notifDropdown').prepend(item);
+        };
+
+        document.getElementById('notifBtn').addEventListener('click', () => {
+            count = 0;
+            const badge = document.getElementById('notifBadge');
+            badge.textContent = '0';
+            badge.classList.add('d-none');
+        });
+    }
+
+    initNotifications();
+</script>
+     
         <!-- Create Post Form Handler -->
         <script type="module">
             import {

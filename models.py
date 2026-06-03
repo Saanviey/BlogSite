@@ -70,7 +70,6 @@ class Post(Base):
 
 
 
-
 ## PasswordResetToken model
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
