@@ -1,39 +1,40 @@
 from email.message import EmailMessage
-
-import aiosmtplib
+# import aiosmtplib
 from fastapi.templating import Jinja2Templates
 
 from config import settings
 
+
 templates = Jinja2Templates(directory="templates")
+import httpx
 
-
-#send_email function
+#switch to brevo for email sends (no dns/300 mails per day)
 async def send_email(
     to_email: str,
     subject: str,
     plain_text: str,
     html_content: str | None = None,
 ) -> None:
-    message = EmailMessage()
-    message["From"] = settings.mail_from
-    message["To"] = to_email
-    message["Subject"] = subject
-
-    message.set_content(plain_text)
-
+    payload = {
+        "sender": {"email": settings.mail_from},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": plain_text,
+    }
     if html_content:
-        message.add_alternative(html_content, subtype="html")
-    
-    await aiosmtplib.send(
-            message,
-            hostname=settings.mail_server,
-            port=settings.mail_port,
-            username=settings.mail_username if settings.mail_username else None,
-            password=settings.mail_password.get_secret_value() or None,
-            start_tls=settings.mail_use_tls,
+        payload["htmlContent"] = html_content
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": settings.brevo_api_key,
+                "Content-Type": "application/json",
+            },
+            json=payload,
         )
-    
+        response.raise_for_status()
+
 
 
 async def send_password_reset_email(to_email: str, username: str, token: str) -> None:
