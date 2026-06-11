@@ -27,4 +27,4 @@ A real-time blogging platform built with FastAPI.
 [fastapi-service-279861998276.asia-southeast1.run.app](https://fastapi-service-279861998276.asia-southeast1.run.app)
 
 
-ps. i could not come up with proper a name , it'll be changed soon.
+PS. i could not come up with a proper name , it'll be changed soon.

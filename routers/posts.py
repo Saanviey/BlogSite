@@ -32,7 +32,7 @@ async def get_posts(db: Annotated[AsyncSession, Depends(get_db)],
     has_more = skip +len(posts) <total 
 
     return PaginatedPostsResponse(
-        posts=[PostResponse.model_validate(post) for post in posts],
+        posts=[PostResponse.model_validate(post, update={"comment_count": len(post.comments)}) for post in posts],
         total = total,
         skip=skip,
         limit=limit,
