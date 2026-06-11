@@ -13,18 +13,3 @@ COPY . .
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
 
-
-# ## Build and Push to Artifact Registry
-# gcloud builds submit \
-#     --tag us-east4-docker.pkg.dev/YOUR_PROJECT_ID/fastapi-repo/fastapi-app
-
-
-
-# ## Deploy to Cloud Run
-# gcloud run deploy fastapi-service \
-#     --image us-east4-docker.pkg.dev/YOUR_PROJECT_ID/fastapi-repo/fastapi-app \
-#     --region us-east4 \
-#     --allow-unauthenticated
-
-
-
