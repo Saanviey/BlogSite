@@ -20,11 +20,14 @@ async def get_posts(db: Annotated[AsyncSession, Depends(get_db)],
     total = count_result.scalar() or 0
 
     result = await db.execute(
-        select(models.Post)
-        .options(selectinload(models.Post.author))
-        .order_by(models.Post.date_posted.desc())
-        .offset(skip).limit(limit),
+    select(models.Post)
+    .options(
+        selectinload(models.Post.author),
+        selectinload(models.Post.comments),
     )
+    .order_by(models.Post.date_posted.desc())
+    .offset(skip).limit(limit),
+   )
     posts = result.scalars().all()
     has_more = skip +len(posts) <total 
 

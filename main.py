@@ -64,11 +64,14 @@ async def home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     total = count_result.scalar() or 0
 
     result = await db.execute(
-        select(models.Post)
-        .options(selectinload(models.Post.author))
-        .order_by(models.Post.date_posted.desc())
-        .limit(settings.posts_per_page),
+    select(models.Post)
+    .options(
+        selectinload(models.Post.author),
+        selectinload(models.Post.comments),
     )
+    .order_by(models.Post.date_posted.desc())
+    .limit(settings.posts_per_page),
+     )
     posts = result.scalars().all()
 
     has_more = len(posts) < total

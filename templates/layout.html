@@ -144,33 +144,36 @@
                 </div>
             </nav>
         </header>
+        <!--sidebar-->
         <main role="main" class="container">
             <div class="row">
                 <div class="col-md-8">
                     {% block content %}
                     {% endblock content %}
                 </div>
-                <aside class="col-md-4">
-                    <div class="content-section py-3 px-4 mb-4">
-                        <h3>Our Sidebar</h3>
-                        <p class="text-body-secondary">You can put any information here you'd like.</p>
-                        <ul class="list-group">
-                            <li class="list-group-item">Latest Posts</li>
-                            <li class="list-group-item">Announcements</li>
-                            <li class="list-group-item">Calendars</li>
-                            <li class="list-group-item">etc</li>
-                        </ul>
-                    </div>
-                </aside>
+               <aside class="col-md-4">
+                     <div class="content-section py-3 px-4 mb-4" style="border-left: 3px solid #9b6ddb; background: rgba(155, 109, 219, 0.08); border-radius: 8px;">
+                        <p class="text-body-secondary small mb-1" style="font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;">from the dev</p>
+                        <h6 class="mb-3" style="font-family: 'Nunito', sans-serif;"> hey, i'm saanvie </h6>
+                         <p class="small mb-3" style="line-height: 1.7;">
+                        welcome to the site !
+                     </p>
+                  <hr style="border-color: rgba(155, 109, 219, 0.3);">
+               <p class="small text-body-secondary mb-0" style="font-size: 0.78rem;">
+            ✦ latest — email password reset now live
+                </p>
+                </div>
+               </aside>
             </div>
         </main>
-        <footer class="mt-auto py-3 bg-body-tertiary border-top">
-            <div class="container text-center">
-                <p class="text-body-secondary mb-0">
-                     <span id="year"></span> by saanvie
-                </p>
-            </div>
-        </footer>
+        <!--footer-->
+       <footer class="mt-auto py-3 border-top" style="border-color: rgba(155, 109, 219, 0.3) !important; background: rgba(155, 109, 219, 0.05);">
+         <div class="container text-center">
+        <p class="text-body-secondary mb-0 small">
+            © <span id="year"></span> saanvie 
+        </p>
+        </div>
+      </footer>
         <!-- Create Post Modal -->
         <div class="modal fade"
              id="createPostModal"

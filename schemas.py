@@ -42,7 +42,7 @@ class PostResponse(PostBase):
     date_posted: datetime
     author: UserPublic
     liked :bool = False
-
+    comment_count: int = 0
 
 class UserUpdate(BaseModel):
     username: str | None = Field(default=None, min_length=1, max_length=50)
