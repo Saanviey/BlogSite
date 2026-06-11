@@ -41,7 +41,7 @@ class PostResponse(PostBase):
     user_id: int
     date_posted: datetime
     author: UserPublic
-    liked :bool
+    liked :bool = False
 
 
 class UserUpdate(BaseModel):

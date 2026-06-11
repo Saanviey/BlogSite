@@ -79,7 +79,7 @@ async def create_comment(
         await notification_manager.send_to_user(post_user_id, {
             "type": "notification",
             "message": f"{current_user.username} commented on your post",
-            "post_id": post_user_id,
+            "post_id": post_id,
             "post_title": post_title,
         })
  

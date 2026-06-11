@@ -36,7 +36,6 @@ async def send_email(
     
 
 
-
 async def send_password_reset_email(to_email: str, username: str, token: str) -> None:
     reset_url = f"{settings.frontend_url}/reset-password?token={token}"
 

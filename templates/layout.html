@@ -323,7 +323,9 @@
         const user = await getCurrentUser();
         if (!user) return;
 
-        const ws = new WebSocket(`ws://localhost:8000/ws/notifications?token=${token}`);
+        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${wsScheme}://${location.host}/ws/notifications?token=${token}`);
+
         let count = 0;
 
         ws.onmessage = (event) => {
@@ -352,8 +354,7 @@
     }
 
     initNotifications();
-</script>
-     
+</script>     
         <!-- Create Post Form Handler -->
         <script type="module">
             import {

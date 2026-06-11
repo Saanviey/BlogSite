@@ -50,7 +50,7 @@ async def create_post(
     new_post = models.Post(
         title=post.title,
         content=post.content,
-        user_id=current_user.id,
+        user_id=current_user.id, 
     )
     db.add(new_post)
     await db.commit()
