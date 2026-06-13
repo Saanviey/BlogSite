@@ -1,4 +1,4 @@
-# BlogSite
+# BlogView
 A real-time blogging platform built with FastAPI.
 
 ## Features
